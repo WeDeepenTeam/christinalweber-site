@@ -8,6 +8,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 const CIRCLE_API = "https://app.circle.so/api/admin/v2/events";
+const CIRCLE_TOPICS_API = "https://app.circle.so/api/admin/v2/topics";
 const CIRCLE_COMMUNITY_URL = "https://circle.wedeepen.com";
 const PER_PAGE = 100;
 // Cache for 60 seconds so repeat page loads don't hammer Circle
@@ -25,6 +26,7 @@ interface CircleEvent {
   cover_image_url: string | null;
   body: string | null;
   confirmation_message_title: string | null;
+  topics?: number[]; // Circle topic ids; resolved to names via /topics
   space?: { id: number; slug: string; name: string; community_id: number } | null;
 }
 
@@ -45,6 +47,7 @@ interface NormalizedEvent {
   location_type: "austin" | "online";
   location_label: string;
   tag: string;
+  topics: string[]; // Circle topic names, e.g. "Love Club", "WeDeepen Members", "In-Person"
   recurring: boolean; // true when this event is one occurrence of a repeating series
   series: string; // shared key for every occurrence of a series (the slug minus its hex suffix)
   description: string;
@@ -120,7 +123,25 @@ function seriesKey(slug: string): string {
   return slug.replace(/-[0-9a-f]{6}$/, "");
 }
 
-function normalize(events: CircleEvent[]): NormalizedEvent[] {
+// Topic ids -> names. Topics are how the calendar is categorized in Circle
+// (Love Club, WeDeepen Members, In-Person, Office Hours, ...) and drive the
+// filter buttons on wedeepen.com/events.
+async function fetchTopicNames(token: string): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
+  try {
+    const res = await fetch(`${CIRCLE_TOPICS_API}?per_page=100`, {
+      headers: { Authorization: `Token ${token}` },
+    });
+    if (!res.ok) return map;
+    const data = await res.json();
+    for (const t of data.records || []) {
+      if (t.id && t.name) map.set(t.id, String(t.name).trim());
+    }
+  } catch { /* topics are optional; events still render without them */ }
+  return map;
+}
+
+function normalize(events: CircleEvent[], topicNames: Map<number, string>): NormalizedEvent[] {
   const now = Date.now();
   const seen = new Set<string>();
   const out: NormalizedEvent[] = [];
@@ -194,6 +215,7 @@ function normalize(events: CircleEvent[]): NormalizedEvent[] {
       location_type,
       location_label,
       tag,
+      topics: (e.topics || []).map((id) => topicNames.get(id)).filter((n): n is string => !!n),
       recurring,
       series,
       description: body || name,
@@ -220,8 +242,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const raw = await fetchAllEvents(token);
-    const events = normalize(raw);
+    const [raw, topicNames] = await Promise.all([fetchAllEvents(token), fetchTopicNames(token)]);
+    const events = normalize(raw, topicNames);
 
     const body = {
       last_updated: new Date().toISOString(),
