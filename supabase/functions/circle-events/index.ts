@@ -8,7 +8,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 const CIRCLE_API = "https://app.circle.so/api/admin/v2/events";
-const CIRCLE_COMMUNITY_URL = "https://circle.wedeepenloveclub.com";
+const CIRCLE_COMMUNITY_URL = "https://circle.wedeepen.com";
 const PER_PAGE = 100;
 // Cache for 60 seconds so repeat page loads don't hammer Circle
 const CACHE_TTL_SECONDS = 60;
@@ -26,8 +26,11 @@ interface CircleEvent {
   space?: { id: number; slug: string; name: string; community_id: number } | null;
 }
 
-// Only events in this Circle space appear on the site
-const ALLOWED_SPACE_SLUG = "events-calendar";
+// Only events in this Circle space appear on the site.
+// This is the "Member's Calendar" space under the WeDeepen space group
+// (https://circle.wedeepen.com/c/member-s-calendar). The old
+// "events-calendar" space under "WeDeepen (old)" is no longer synced.
+const ALLOWED_SPACE_SLUG = "member-s-calendar";
 
 interface NormalizedEvent {
   id: string;
@@ -40,6 +43,7 @@ interface NormalizedEvent {
   location_type: "austin" | "online";
   location_label: string;
   tag: string;
+  recurring: boolean; // true when this is the next occurrence of a repeating series
   description: string;
   image_url: string;
   url: string;
@@ -106,13 +110,34 @@ async function fetchAllEvents(token: string): Promise<CircleEvent[]> {
   return all;
 }
 
+// Circle expands recurring events into one record per occurrence, each with
+// the series slug plus a 6-char hex suffix (office-hours-b0056a, -6d8c9c, ...).
+// Strip the suffix to get a key shared by every occurrence in the series.
+function seriesKey(slug: string): string {
+  return slug.replace(/-[0-9a-f]{6}$/, "");
+}
+
 function normalize(events: CircleEvent[]): NormalizedEvent[] {
   const now = Date.now();
   const seen = new Set<string>();
   const out: NormalizedEvent[] = [];
 
-  for (const e of events) {
-    // Filter: only include events from the public events-calendar space,
+  // Sort by start time first so that, when a recurring series is collapsed
+  // below, the occurrence we keep is the next upcoming one.
+  const sorted = [...events].sort((a, b) =>
+    (a.starts_at || "").localeCompare(b.starts_at || "")
+  );
+
+  // Count occurrences per series so we can flag recurring events
+  const seriesCount = new Map<string, number>();
+  for (const e of sorted) {
+    if (!e.space || e.space.slug !== ALLOWED_SPACE_SLUG || !e.slug) continue;
+    const k = seriesKey(e.slug);
+    seriesCount.set(k, (seriesCount.get(k) || 0) + 1);
+  }
+
+  for (const e of sorted) {
+    // Filter: only include events from the Member's Calendar space,
     // not "Official Events" or other internal spaces
     if (!e.space || e.space.slug !== ALLOWED_SPACE_SLUG) continue;
 
@@ -121,9 +146,13 @@ function normalize(events: CircleEvent[]): NormalizedEvent[] {
     const endTime = ends ? new Date(ends).getTime() : new Date(starts).getTime();
     if (isNaN(endTime) || endTime < now) continue;
 
+    // Collapse recurring series: only the next upcoming occurrence is kept
     const slug = e.slug || "";
-    if (!slug || seen.has(slug)) continue;
-    seen.add(slug);
+    if (!slug) continue;
+    const series = seriesKey(slug);
+    if (seen.has(series)) continue;
+    seen.add(series);
+    const recurring = (seriesCount.get(series) || 0) > 1;
 
     let location_type: "austin" | "online" = "austin";
     let location_label = "Austin, TX";
@@ -161,9 +190,10 @@ function normalize(events: CircleEvent[]): NormalizedEvent[] {
       location_type,
       location_label,
       tag,
+      recurring,
       description: body || name,
       image_url: e.cover_image_url || "",
-      url: `${CIRCLE_COMMUNITY_URL}/c/events-calendar/${slug}`,
+      url: `${CIRCLE_COMMUNITY_URL}/c/${e.space.slug}/${slug}`,
     });
   }
 
@@ -190,7 +220,7 @@ Deno.serve(async (req) => {
 
     const body = {
       last_updated: new Date().toISOString(),
-      source: "circle.wedeepenloveclub.com",
+      source: "circle.wedeepen.com",
       event_count: events.length,
       events,
     };
