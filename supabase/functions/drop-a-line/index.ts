@@ -15,11 +15,15 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Must match the <option> values in the Drop a Line form on wedeepen.com
 const ALLOWED_SUBJECTS = new Set([
+  "WeDeepen Membership",
   "Love Club",
   "Love Immersion",
+  "Make a Request",
   "Media / Press",
-  "Becoming a Love Strategist",
+  "Joining the Faculty",
+  "Becoming a Love Strategist", // legacy value, kept so cached pages still submit
   "Other",
 ]);
 
