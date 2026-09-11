@@ -36,6 +36,10 @@ interface CircleEvent {
 // "events-calendar" space under "WeDeepen (old)" is no longer synced.
 const ALLOWED_SPACE_SLUG = "member-s-calendar";
 
+// An event must carry at least one of these Circle topics to appear on
+// wedeepen.com. Everything else is Love Club-only and stays in Circle.
+const PUBLIC_TOPICS = new Set(["WeDeepen Members", "Open to Everyone"]);
+
 interface NormalizedEvent {
   id: string;
   title: string;
@@ -163,6 +167,11 @@ function normalize(events: CircleEvent[], topicNames: Map<number, string>): Norm
     // Filter: only include events from the Member's Calendar space,
     // not "Official Events" or other internal spaces
     if (!e.space || e.space.slug !== ALLOWED_SPACE_SLUG) continue;
+
+    // Public site shows only events a non-Love-Club visitor could attend.
+    // Love Club-only events (Friday Office Hours, etc.) stay in Circle.
+    const topicNamesForEvent = (e.topics || []).map((id) => topicNames.get(id) || "");
+    if (!topicNamesForEvent.some((t) => PUBLIC_TOPICS.has(t))) continue;
 
     const starts = e.starts_at || "";
     const ends = e.ends_at || "";
