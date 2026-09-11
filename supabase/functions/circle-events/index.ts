@@ -12,6 +12,8 @@ const CIRCLE_COMMUNITY_URL = "https://circle.wedeepen.com";
 const PER_PAGE = 100;
 // Cache for 60 seconds so repeat page loads don't hammer Circle
 const CACHE_TTL_SECONDS = 60;
+// Recurring series run out for years; only return the next 12 months
+const HORIZON_MS = 365 * 24 * 60 * 60 * 1000;
 
 interface CircleEvent {
   slug: string;
@@ -43,7 +45,8 @@ interface NormalizedEvent {
   location_type: "austin" | "online";
   location_label: string;
   tag: string;
-  recurring: boolean; // true when this is the next occurrence of a repeating series
+  recurring: boolean; // true when this event is one occurrence of a repeating series
+  series: string; // shared key for every occurrence of a series (the slug minus its hex suffix)
   description: string;
   image_url: string;
   url: string;
@@ -122,8 +125,7 @@ function normalize(events: CircleEvent[]): NormalizedEvent[] {
   const seen = new Set<string>();
   const out: NormalizedEvent[] = [];
 
-  // Sort by start time first so that, when a recurring series is collapsed
-  // below, the occurrence we keep is the next upcoming one.
+  // Sort by start time so occurrences come out in calendar order
   const sorted = [...events].sort((a, b) =>
     (a.starts_at || "").localeCompare(b.starts_at || "")
   );
@@ -145,13 +147,15 @@ function normalize(events: CircleEvent[]): NormalizedEvent[] {
     const ends = e.ends_at || "";
     const endTime = ends ? new Date(ends).getTime() : new Date(starts).getTime();
     if (isNaN(endTime) || endTime < now) continue;
+    const startTime = new Date(starts).getTime();
+    if (!isNaN(startTime) && startTime > now + HORIZON_MS) continue;
 
-    // Collapse recurring series: only the next upcoming occurrence is kept
+    // Every occurrence of a recurring series is returned; the site decides
+    // whether to show them all (events page) or one per series (homepage).
     const slug = e.slug || "";
-    if (!slug) continue;
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
     const series = seriesKey(slug);
-    if (seen.has(series)) continue;
-    seen.add(series);
     const recurring = (seriesCount.get(series) || 0) > 1;
 
     let location_type: "austin" | "online" = "austin";
@@ -191,13 +195,14 @@ function normalize(events: CircleEvent[]): NormalizedEvent[] {
       location_label,
       tag,
       recurring,
+      series,
       description: body || name,
       image_url: e.cover_image_url || "",
       url: `${CIRCLE_COMMUNITY_URL}/c/${e.space.slug}/${slug}`,
     });
   }
 
-  out.sort((a, b) => a.date.localeCompare(b.date));
+  out.sort((a, b) => a.starts_at_iso.localeCompare(b.starts_at_iso));
   return out;
 }
 
