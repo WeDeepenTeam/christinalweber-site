@@ -22,6 +22,7 @@ const ALLOWED_SUBJECTS = new Set([
   "WeDeepen Membership",
   "Love Club",
   "Love Immersion",
+  "Love Immersion Member Credit",
   "Make a Request",
   "Media / Press",
   "Joining the Faculty",
