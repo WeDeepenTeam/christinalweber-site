@@ -178,6 +178,42 @@ async function postToInbox(token: string, spaceId: number, p: {
   return { ok: res.ok, status: res.status, id: data?.post?.id ?? data?.id ?? null };
 }
 
+// ─── Email copy via Resend (optional) ─────────────────────────────────
+// Sends the same submission to the team inbox when RESEND_API_KEY is set.
+// Needs wedeepen.com verified in Resend; failures are logged, never fatal,
+// because the Circle inbox post above is the system of record.
+const NOTIFY_TO = Deno.env.get("DROP_A_LINE_NOTIFY_TO") || "team@wedeepen.com";
+const NOTIFY_FROM = Deno.env.get("DROP_A_LINE_NOTIFY_FROM") || "WeDeepen Website <team@wedeepen.com>";
+
+async function emailTeam(p: {
+  name: string; email: string; phone: string; subject: string; message: string;
+}, inboxPostId: number | null) {
+  const key = Deno.env.get("RESEND_API_KEY");
+  if (!key) return { ok: false, skipped: true };
+  const html =
+    `<p><strong>From:</strong> ${esc(p.name)} &lt;${esc(p.email)}&gt;</p>` +
+    (p.phone ? `<p><strong>Phone:</strong> ${esc(p.phone)}</p>` : "") +
+    `<p><strong>Subject:</strong> ${esc(p.subject || "Other")}</p>` +
+    `<p><strong>Message:</strong></p>` +
+    (p.message ? p.message.split(/\n{2,}/).map((para) => `<p>${esc(para).replace(/\n/g, "<br>")}</p>`).join("") : "<p><em>(no message)</em></p>") +
+    `<p style="color:#888;font-size:12px">Sent from the Drop a Line form on wedeepen.com. Reply to this email to answer them.` +
+    (inboxPostId ? ` Also posted to the Circle inbox (post ${inboxPostId}).` : "") + `</p>`;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: NOTIFY_FROM,
+      to: [NOTIFY_TO],
+      reply_to: p.email,
+      subject: `Drop a Line: ${p.subject || "Other"} from ${p.name}`,
+      html,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) console.error("drop-a-line: email failed", res.status, data);
+  return { ok: res.ok, skipped: false, status: res.status };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -238,17 +274,20 @@ Deno.serve(async (req) => {
     const spaceId = await findOrCreateInboxSpace(token);
     if (spaceId) inbox = await postToInbox(token, spaceId, { name, email, phone, subject, message });
 
+    const mail = await emailTeam({ name, email, phone, subject, message }, inbox.id);
+
     console.log("drop-a-line submission:", {
       name, email, phone, subject,
       message: message.slice(0, 200),
       circle_ok: result.ok, circle_status: result.status, member_id: result.memberId,
       tagged, inbox_space: spaceId, inbox_ok: inbox.ok, inbox_post: inbox.id,
+      email_ok: mail.ok, email_skipped: mail.skipped,
     });
 
     // The visitor should never see a failure for a Circle hiccup as long as the
     // message reached the inbox; if the inbox failed too, say so honestly so the
     // form shows its "email us instead" fallback.
-    if (!inbox.ok) {
+    if (!inbox.ok && !mail.ok) {
       return new Response(
         JSON.stringify({ error: "Could not deliver message." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
