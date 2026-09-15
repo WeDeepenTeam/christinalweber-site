@@ -1,8 +1,8 @@
 // Supabase Edge Function: drop-a-line
-// Accepts contact form submissions from the WeDeepen site. Creates (or finds)
-// the Circle community member, tags them "drop-a-line" + a subject tag, and
-// posts the full submission into a private "Drop a Line Inbox" space so the
-// team is notified and nothing is lost.
+// Accepts contact form submissions from the WeDeepen site. Stores the full
+// submission in the private drop_a_line_submissions table, emails the team
+// via Resend when configured, and creates/tags the Circle member. (Posting
+// to a Circle space is off by default: members could see it.)
 //
 // Deploy:  supabase functions deploy drop-a-line --no-verify-jwt
 // Public URL: https://<project-ref>.supabase.co/functions/v1/drop-a-line
@@ -214,6 +214,27 @@ async function emailTeam(p: {
   return { ok: res.ok, skipped: false, status: res.status };
 }
 
+// ─── System of record: private Supabase table ─────────────────────────
+// Only the service role can read it (RLS on, anon/authenticated revoked), so
+// nothing a community member can see. Email is layered on top.
+async function storeSubmission(p: {
+  name: string; email: string; phone: string; subject: string; message: string;
+}, emailed: boolean) {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return { ok: false };
+  const res = await fetch(`${url}/rest/v1/drop_a_line_submissions`, {
+    method: "POST",
+    headers: {
+      "apikey": key, "Authorization": `Bearer ${key}`,
+      "Content-Type": "application/json", "Prefer": "return=minimal",
+    },
+    body: JSON.stringify({ name: p.name, email: p.email, phone: p.phone || null, subject: p.subject || null, message: p.message || null, page: "/#contact", emailed }),
+  });
+  if (!res.ok) console.error("drop-a-line: store failed", res.status, await res.text().catch(() => ""));
+  return { ok: res.ok };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -270,24 +291,28 @@ Deno.serve(async (req) => {
 
     // The message itself goes to the private inbox space. This is the part
     // that matters: without it nobody ever sees what was written.
+    // Circle inbox posting is OFF: Circle auto-added members to the space,
+    // which exposed contact messages. Kept the code path behind an env flag
+    // for a future admin-only space; default is never to post.
     let inbox: { ok: boolean; status: number; id: number | null } = { ok: false, status: 0, id: null };
-    const spaceId = await findOrCreateInboxSpace(token);
+    const spaceId = Deno.env.get("DROP_A_LINE_CIRCLE_INBOX") === "on" ? await findOrCreateInboxSpace(token) : null;
     if (spaceId) inbox = await postToInbox(token, spaceId, { name, email, phone, subject, message });
 
     const mail = await emailTeam({ name, email, phone, subject, message }, inbox.id);
+    const stored = await storeSubmission({ name, email, phone, subject, message }, mail.ok);
 
     console.log("drop-a-line submission:", {
       name, email, phone, subject,
       message: message.slice(0, 200),
       circle_ok: result.ok, circle_status: result.status, member_id: result.memberId,
       tagged, inbox_space: spaceId, inbox_ok: inbox.ok, inbox_post: inbox.id,
-      email_ok: mail.ok, email_skipped: mail.skipped,
+      email_ok: mail.ok, email_skipped: mail.skipped, stored: stored.ok,
     });
 
     // The visitor should never see a failure for a Circle hiccup as long as the
     // message reached the inbox; if the inbox failed too, say so honestly so the
     // form shows its "email us instead" fallback.
-    if (!inbox.ok && !mail.ok) {
+    if (!stored.ok && !mail.ok && !inbox.ok) {
       return new Response(
         JSON.stringify({ error: "Could not deliver message." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
