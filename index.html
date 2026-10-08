@@ -950,7 +950,9 @@
           <textarea name="message" placeholder="Tell me a bit about what you're looking for..." rows="4" style="padding:14px 18px;border:1px solid var(--aap-border);border-radius:6px;font-size:0.95rem;font-family:inherit;background:#ffffff;outline:none;resize:vertical;"></textarea>
           <input type="hidden" name="_subject" value="New inquiry from christinalweber.com">
           <input type="hidden" name="_next" value="https://christinalweber.com/thank-you/">
-          <input type="hidden" name="_captcha" value="false">
+          <!-- Spam protection: honeypot (bots fill it, FormSubmit drops the submission), FormSubmit's captcha left on, and a phrase blacklist -->
+          <input type="text" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+          <input type="hidden" name="_blacklist" value="graph.org, telegra.ph, crypto, bitcoin, usdt, usd coin, withdraw, bonus, airdrop, casino, seo services, backlinks">
           <input type="hidden" name="_template" value="table">
           <button type="submit" class="btn btn--primary btn-pulse" style="border:none;cursor:pointer;width:100%;">Send Inquiry</button>
         </form>
