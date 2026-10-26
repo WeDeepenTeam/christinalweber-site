@@ -207,6 +207,22 @@
     .google-section {
       max-width: 1200px; margin: 0 auto; padding: 0 24px 80px;
     }
+    .google-summary {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+      margin-bottom: 28px; font-size: 0.9rem; color: var(--aap-text-muted);
+    }
+    .google-summary a { color: var(--aap-accent); font-weight: 600; text-decoration: none; }
+    .google-summary a:hover { text-decoration: underline; }
+    .stars { color: #e8a33d; letter-spacing: 0.1em; }
+    .testimonial .stars { display: block; font-size: 0.85rem; margin-bottom: 12px; }
+    .testimonial--google .testimonial__quote { font-style: normal; }
+    .testimonial--google .testimonial__quote + .testimonial__quote { margin-top: -8px; }
+    .google-more { text-align: center; margin-top: 32px; }
+    .btn--outline {
+      background: none; border: 1px solid var(--aap-accent); color: var(--aap-accent);
+      cursor: pointer; font-family: inherit;
+    }
+    .btn--outline:hover { background: var(--aap-accent); color: #fff; }
 
     /* ========== CTA ========== */
     .page-cta {
@@ -551,11 +567,16 @@
     </div>
   </section>
 
-  <!-- ===== GOOGLE REVIEWS (Elfsight Widget) ===== -->
+  <!-- ===== GOOGLE REVIEWS (loaded from wedeepen.com/reviews/data/reviews.json) ===== -->
   <section class="google-section">
     <p class="section-label">Google Reviews</p>
-    <script src="https://elfsightcdn.com/platform.js" async></script>
-    <div class="elfsight-app-39fe9fb2-f6ef-4fd3-a773-38ce403debf6" data-elfsight-app-lazy></div>
+    <div class="google-summary" id="googleSummary">
+      <a href="https://www.google.com/maps/place/WeDeepen+Relationships/@46.423669,-129.9427085,3z/data=!3m1!4b1!4m6!3m5!1s0xaa80f86b624c8bfb:0x4a10ae169fb52202!8m2!3d46.423669!4d-129.9427086!16s%2Fg%2F11xryrltcy?hl=en-US" target="_blank" rel="noopener" id="googleProfileLink">Read our reviews on Google &rarr;</a>
+    </div>
+    <div class="testimonials-grid" id="googleReviews"></div>
+    <div class="google-more" id="googleMore" hidden>
+      <button type="button" class="btn btn--outline">Show all Google reviews</button>
+    </div>
   </section>
 
   </main>
@@ -586,6 +607,54 @@
     document.getElementById('navToggle').addEventListener('click', () => {
       document.getElementById('navLinks').classList.toggle('open');
     });
+
+    // Google reviews: same Google profile as wedeepen.com, which keeps them synced
+    // in its reviews.json. If the fetch fails, the static "Read on Google" link stays.
+    (async () => {
+      const INITIAL = 6;
+      const grid = document.getElementById('googleReviews');
+      const more = document.getElementById('googleMore');
+      let reviews;
+      try {
+        const res = await fetch('https://wedeepen.com/reviews/data/reviews.json');
+        if (!res.ok) return;
+        reviews = (await res.json())
+          .filter(r => r.source === 'google' && r.rating === 5 && r.text?.length)
+          .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      } catch { return; }
+      if (!reviews.length) return;
+
+      const el = (tag, cls, text) => {
+        const n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text) n.textContent = text;
+        return n;
+      };
+
+      const summary = document.getElementById('googleSummary');
+      const link = document.getElementById('googleProfileLink');
+      summary.prepend(el('span', null, `${reviews.length} five-star reviews`));
+      summary.prepend(el('span', 'stars', '★★★★★'));
+      link.textContent = 'Read them all on Google →';
+
+      reviews.forEach((r, i) => {
+        const card = el('div', 'testimonial testimonial--google');
+        card.append(el('span', 'stars', '★★★★★'));
+        r.text.forEach(p => card.append(el('p', 'testimonial__quote', p)));
+        card.append(el('p', 'testimonial__name', r.name));
+        card.append(el('p', 'testimonial__role', 'Google review'));
+        if (i >= INITIAL) card.hidden = true;
+        grid.append(card);
+      });
+
+      if (reviews.length > INITIAL) {
+        more.hidden = false;
+        more.querySelector('button').addEventListener('click', () => {
+          grid.querySelectorAll('.testimonial[hidden]').forEach(c => { c.hidden = false; });
+          more.hidden = true;
+        });
+      }
+    })();
   </script>
 
 </body>
