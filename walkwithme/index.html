@@ -3,18 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Walk With Me | Christina L. Weber</title>
-  <meta name="description" content="Book a time to go on a walk with Christina.">
-  <meta property="og:title" content="Walk With Me | Christina L. Weber">
-  <meta property="og:description" content="Book a time to go on a walk with Christina.">
-  <meta property="og:url" content="https://christinalweber.com/walkwithme/">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-BY3F2GQXR8"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-BY3F2GQXR8');
+  </script>
+  <title>Walk With Me | Christina Weber</title>
+  <meta name="description" content="Book a time to go on a walk with Christina Weber.">
   <meta name="robots" content="noindex">
-  <!-- Short link: forwards to Christina's Google Calendar booking page -->
-  <meta http-equiv="refresh" content="0; url=https://calendar.app.google/cRmFb7vKw6RFTPv57">
-  <script>window.location.replace("https://calendar.app.google/cRmFb7vKw6RFTPv57");</script>
+  <link rel="canonical" href="https://christinalweber.com/walkwithme/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://christinalweber.com/walkwithme/">
+  <meta property="og:title" content="Walk With Me | Christina Weber">
+  <meta property="og:description" content="Book a time to go on a walk with Christina.">
+  <meta property="og:image" content="https://christinalweber.com/images/og-image.jpg">
+  <meta property="og:site_name" content="Christina Weber">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Walk With Me | Christina Weber">
+  <meta name="twitter:description" content="Book a time to go on a walk with Christina.">
+  <meta name="twitter:image" content="https://christinalweber.com/images/og-image.jpg">
+
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <meta name="theme-color" content="#d4883a">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/tokens.css">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--aap-font-body);
+      color: var(--aap-text);
+      background: var(--aap-bg);
+      line-height: var(--aap-leading-normal);
+    }
+    .nav {
+      border-bottom: 1px solid var(--aap-border);
+      background: rgba(250, 249, 246, 0.92);
+    }
+    .nav__inner {
+      max-width: 1200px; margin: 0 auto; padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav__name {
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 1.25rem; color: var(--aap-text); text-decoration: none;
+    }
+    .nav__home {
+      font-size: 0.8rem; font-weight: 500; color: var(--aap-text-muted);
+      text-decoration: none; letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .nav__home:hover { color: var(--aap-accent); }
+    .page-header {
+      text-align: center; padding: 48px 24px 24px;
+      max-width: 720px; margin: 0 auto;
+    }
+    .page-header__eyebrow {
+      font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--aap-accent); margin-bottom: 12px;
+    }
+    .page-header h1 {
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: clamp(2rem, 4vw, 3rem); line-height: 1.15; margin-bottom: 12px;
+    }
+    .page-header p { color: var(--aap-text-muted); font-size: 1.05rem; }
+    .booking {
+      max-width: 1000px; margin: 0 auto; padding: 0 16px 48px;
+    }
+    .booking iframe {
+      display: block; width: 100%; height: 900px; border: 0;
+      border-radius: 12px; background: #fff;
+      box-shadow: var(--aap-shadow);
+    }
+    .booking__fallback {
+      text-align: center; margin-top: 16px; font-size: 0.85rem; color: var(--aap-text-muted);
+    }
+    .booking__fallback a { color: var(--aap-accent); }
+    @media (max-width: 600px) {
+      .page-header { padding-top: 32px; }
+      .booking iframe { height: 1100px; border-radius: 8px; }
+    }
+  </style>
 </head>
-<body style="font-family: sans-serif; text-align: center; padding: 3rem 1rem;">
-  <p>Taking you to book a walk with Christina&hellip;</p>
-  <p><a href="https://calendar.app.google/cRmFb7vKw6RFTPv57">Click here if you aren't redirected.</a></p>
+<body>
+  <header class="nav">
+    <div class="nav__inner">
+      <a href="/" class="nav__name">Christina Weber</a>
+      <a href="/" class="nav__home">Home</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-header">
+      <p class="page-header__eyebrow">Walk With Me</p>
+      <h1>Let's go for a walk</h1>
+      <p>Pick a time that works for you.</p>
+    </section>
+
+    <section class="booking">
+      <iframe
+        src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0w4b_x2ym5_lOSHbC4xfQxuc1vK-xzifbUhCqtXJRb6r6_YXYG_ufe1WNOFT4yOJepaXPF5GCI?gv=true"
+        title="Book a walk with Christina"
+        loading="eager"></iframe>
+      <p class="booking__fallback">Trouble seeing the calendar? <a href="https://calendar.app.google/cRmFb7vKw6RFTPv57" target="_blank" rel="noopener">Open it in a new tab</a>.</p>
+    </section>
+  </main>
 </body>
 </html>
